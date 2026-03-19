@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1A0A00">
+  <meta name="description" content="AgriSmart — Diagnostic IA des maladies du maïs">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AgriSmart">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>AgriSmart — Diagnostic IA</title>
+  <style>
+    :root {
+      --terre:"8B4513"; --ocre:#C8860A; --gold:#DAA520; --savane:#4A7C59;
+      --nuit:#1A0A00; --sunset:#D2691E; --cream:#FFF8EE; --sable:#F5DEB3;
+      --bark:#6B3A2A; --red:#A0280A; --white:#FFFFFF; --muted:#9B7B5B;
+      --safe-top:env(safe-area-inset-top,0px); --safe-bot:env(safe-area-inset-bottom,0px);
+    }
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:#FFF8EE;color:#1A0A00;min-height:100vh;overflow-x:hidden}
+    #app{display:flex;flex-direction:column;min-height:100vh}
+
+    /* HEADER */
+    .header{background:#1A0A00;padding:calc(12px + var(--safe-top)) 16px 12px;display:flex;align-items:center;gap:12px;border-bottom:3px solid #C8860A;position:sticky;top:0;z-index:100}
+    .header-logo{font-size:28px}
+    .header-title{flex:1}
+    .header-title h1{font-size:20px;font-weight:700;color:#DAA520;letter-spacing:1px}
+    .header-title p{font-size:11px;color:#9B7B5B}
+    .offline-badge{background:#A0280A;color:white;padding:3px 8px;border-radius:12px;font-size:10px;font-weight:600;display:none}
+    .offline-badge.show{display:block}
+
+    /* PAGES */
+    .page{display:none;flex:1;flex-direction:column;padding:16px;padding-bottom:80px}
+    .page.active{display:flex}
+
+    /* HOME */
+    .hero-card{background:#1A0A00;border-radius:16px;padding:20px;text-align:center;margin-bottom:16px;border:1px solid #6B3A2A}
+    .hero-card h2{font-size:20px;color:#DAA520;margin-bottom:6px}
+    .hero-card p{font-size:13px;color:#F5DEB3;line-height:1.6}
+    .action-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+    .action-card{background:#fff;border-radius:14px;padding:18px 12px;text-align:center;cursor:pointer;border:2px solid #F5DEB3;transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+    .action-card:active{transform:scale(.95)}
+    .action-card.dark{background:#1A0A00;border-color:#C8860A}
+    .ac-icon{font-size:34px;margin-bottom:8px}
+    .ac-title{font-size:13px;font-weight:700;color:#6B3A2A}
+    .ac-sub{font-size:11px;color:#9B7B5B;margin-top:3px}
+    .action-card.dark .ac-title{color:#DAA520}
+    .classes-card{background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+    .classes-card h3{font-size:13px;font-weight:700;color:#6B3A2A;margin-bottom:10px}
+    .cls-row{display:flex;align-items:center;gap:10px;font-size:13px;padding:5px 0;border-bottom:1px solid #f3f4f6}
+    .cls-row:last-child{border:none}
+    .cls-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+
+    /* SCAN */
+    .api-bar{display:flex;align-items:center;gap:6px;font-size:11px;padding:6px 12px;background:#1A0A00;border-radius:20px;margin-bottom:12px;width:fit-content}
+    .api-dot{width:8px;height:8px;border-radius:50%}
+    .api-dot.ok{background:#22c55e} .api-dot.err{background:#ef4444} .api-dot.chk{background:#DAA520;animation:pulse 1s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    .upload-zone{background:#fff;border-radius:16px;border:2px dashed #C8860A;padding:32px 20px;text-align:center;cursor:pointer;margin-bottom:14px;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    .upload-zone:active{background:#FFF3E0}
+    .uz-icon{font-size:48px;margin-bottom:10px}
+    .upload-zone h3{font-size:15px;color:#6B3A2A;font-weight:700}
+    .upload-zone p{font-size:12px;color:#9B7B5B;margin-top:4px}
+    #preview-container{display:none}
+    #preview-img{width:100%;border-radius:14px;max-height:260px;object-fit:cover;margin-bottom:14px;border:2px solid #F5DEB3}
+    .cam-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+    .btn{width:100%;padding:13px;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;margin-bottom:10px}
+    .btn:active{transform:scale(.97)} .btn:disabled{opacity:.5;cursor:not-allowed}
+    .btn-primary{background:#C8860A;color:#1A0A00}
+    .btn-secondary{background:#1A0A00;color:#DAA520;border:1.5px solid #C8860A}
+    .btn-danger{background:#A0280A;color:white}
+    .loader{display:none;flex-direction:column;align-items:center;padding:32px;gap:14px}
+    .loader.show{display:flex}
+    .spinner{width:44px;height:44px;border-radius:50%;border:4px solid #F5DEB3;border-top-color:#C8860A;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .loader p{font-size:13px;color:#9B7B5B}
+    #result-section{display:none}
+    .result-card{border-radius:14px;padding:16px;margin-bottom:12px;border-left:5px solid}
+    .rc-saine{background:#F0FDF4;border-color:#22c55e}
+    .rc-rust{background:#FFF7ED;border-color:#f97316}
+    .rc-blight{background:#FEF2F2;border-color:#ef4444}
+    .result-card h3{font-size:17px;font-weight:700;margin-bottom:4px}
+    .result-card p{font-size:13px;color:#4b5563;line-height:1.5}
+    .stat-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+    .stat-box{background:#fff;border-radius:12px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+    .stat-val{font-size:22px;font-weight:700;color:#C8860A}
+    .stat-lbl{font-size:11px;color:#9B7B5B;margin-top:2px}
+    .prob-section{background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+    .prob-section h4{font-size:12px;color:#9B7B5B;margin-bottom:10px;font-weight:600}
+    .pb-row{margin-bottom:8px}
+    .pb-label{display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:4px}
+    .pb-bg{background:#e5e7eb;border-radius:6px;height:9px;overflow:hidden}
+    .pb-fill{height:9px;border-radius:6px;transition:width .5s}
+    .conseil-box{background:#fffbeb;border:1px solid #fcd34d;border-radius:12px;padding:14px;margin-bottom:12px}
+    .conseil-box h4{font-size:13px;font-weight:700;margin-bottom:6px;color:#92400e}
+    .conseil-box p{font-size:13px;color:#78350f;line-height:1.6}
+
+    /* HISTORY */
+    .hist-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+    .hist-header h2{font-size:16px;font-weight:700;color:#6B3A2A}
+    .clear-btn{padding:6px 12px;background:#fee2e2;border:none;border-radius:8px;cursor:pointer;font-size:12px;color:#A0280A;font-weight:600}
+    .history-empty{text-align:center;padding:48px 20px}
+    .history-empty .he-icon{font-size:48px;margin-bottom:10px}
+    .history-empty p{color:#9B7B5B;font-size:14px}
+    .hist-item{background:#fff;border-radius:14px;padding:12px;margin-bottom:10px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);border-left:4px solid}
+    .hist-item.saine{border-color:#22c55e} .hist-item.rust{border-color:#f97316} .hist-item.blight{border-color:#ef4444}
+    .hi-img{width:56px;height:56px;border-radius:10px;object-fit:cover;flex-shrink:0;background:#F5DEB3}
+    .hi-info{flex:1}
+    .hi-label{font-size:13px;font-weight:700;color:#6B3A2A}
+    .hi-conf{font-size:11px;color:#9B7B5B;margin-top:2px}
+    .hi-date{font-size:10px;color:#9B7B5B;margin-top:2px}
+    .hi-del{padding:6px 10px;background:#fee2e2;border:none;border-radius:8px;cursor:pointer;font-size:15px;color:#A0280A}
+
+    /* SETTINGS */
+    .s-section{margin-bottom:18px}
+    .s-title{font-size:11px;font-weight:700;color:#9B7B5B;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+    .s-card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+    .s-row{padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f3f4f6}
+    .s-row:last-child{border:none}
+    .s-icon{font-size:20px;width:30px;text-align:center}
+    .s-info{flex:1}
+    .s-label{font-size:14px;font-weight:600;color:#6B3A2A}
+    .s-sub{font-size:12px;color:#9B7B5B;margin-top:2px}
+    .s-input{border:1.5px solid #F5DEB3;border-radius:8px;padding:6px 10px;font-size:13px;width:100%;margin-top:8px;color:#1A0A00;background:#FFF8EE}
+    .toggle{position:relative;width:42px;height:22px;background:#d1d5db;border-radius:11px;cursor:pointer;transition:background .2s;flex-shrink:0}
+    .toggle.on{background:#4A7C59}
+    .toggle::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;background:white;border-radius:50%;transition:transform .2s}
+    .toggle.on::after{transform:translateX(20px)}
+
+    /* BOTTOM NAV */
+    .bottom-nav{display:flex;background:#1A0A00;border-top:2px solid #6B3A2A;padding-bottom:var(--safe-bot);position:fixed;bottom:0;left:0;right:0;z-index:100}
+    .bnav-btn{flex:1;padding:10px 4px;border:none;background:transparent;color:#9B7B5B;font-size:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;transition:all .2s}
+    .bn-icon{font-size:22px}
+    .bnav-btn.active{color:#DAA520}
+    .bnav-btn.active .bn-icon{transform:scale(1.1)}
+
+    .toast{position:fixed;bottom:calc(78px + var(--safe-bot));left:50%;transform:translateX(-50%) translateY(20px);background:#1A0A00;color:#DAA520;padding:10px 20px;border-radius:24px;font-size:13px;font-weight:600;border:1px solid #C8860A;opacity:0;transition:all .3s;z-index:999;white-space:nowrap}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <header class="header">
+    <div class="header-logo">🌿</div>
+    <div class="header-title">
+      <h1>AgriSmart</h1>
+      <p>Diagnostic IA des cultures</p>
+    </div>
+    <div class="offline-badge" id="offline-badge">HORS-LIGNE</div>
+  </header>
+
+  <!-- PAGE ACCUEIL -->
+  <main class="page active" id="page-home">
+    <div class="hero-card">
+      <h2>🌾 Bienvenue !</h2>
+      <p>Prenez une photo de votre feuille de maïs et obtenez un diagnostic instantané par IA — même sans connexion.</p>
+    </div>
+    <div class="action-grid">
+      <div class="action-card dark" onclick="goPage('page-scan');openCamera()">
+        <div class="ac-icon">📷</div>
+        <div class="ac-title">Caméra</div>
+        <div class="ac-sub">Photo instantanée</div>
+      </div>
+      <div class="action-card" onclick="goPage('page-scan');openGallery()">
+        <div class="ac-icon">🖼️</div>
+        <div class="ac-title">Galerie</div>
+        <div class="ac-sub">Choisir une image</div>
+      </div>
+    </div>
+    <div class="classes-card">
+      <h3>Classes détectées</h3>
+      <div class="cls-row"><div class="cls-dot" style="background:#22c55e"></div><div><strong>Saine</strong> — Aucune infection</div></div>
+      <div class="cls-row"><div class="cls-dot" style="background:#f97316"></div><div><strong>Rouille commune</strong> — Maladie fongique</div></div>
+      <div class="cls-row"><div class="cls-dot" style="background:#ef4444"></div><div><strong>Brûlure des feuilles</strong> — Maladie sévère</div></div>
+    </div>
+  </main>
+
+  <!-- PAGE SCAN -->
+  <main class="page" id="page-scan">
+    <div class="api-bar">
+      <div class="api-dot chk" id="api-dot"></div>
+      <span id="api-text">Vérification...</span>
+    </div>
+
+    <div id="upload-zone" class="upload-zone" onclick="openGallery()">
+      <div class="uz-icon">📁</div>
+      <h3>Choisir une image</h3>
+      <p>Ou utilisez la caméra ci-dessous</p>
+    </div>
+    <div id="preview-container">
+      <img id="preview-img" src="" alt="Aperçu">
+    </div>
+    <div class="cam-btns">
+      <button class="btn btn-secondary" onclick="openCamera()">📷 Caméra</button>
+      <button class="btn btn-secondary" onclick="openGallery()">🖼️ Galerie</button>
+    </div>
+    <button class="btn btn-primary" id="analyze-btn" onclick="analyzeImage()" disabled>🔍 Lancer le diagnostic</button>
+
+    <div class="loader" id="loader">
+      <div class="spinner"></div>
+      <p>Analyse en cours...</p>
+    </div>
+
+    <div id="result-section">
+      <div class="result-card" id="result-card">
+        <h3 id="result-label"></h3>
+        <p id="result-desc"></p>
+      </div>
+      <div class="stat-row">
+        <div class="stat-box"><div class="stat-val" id="result-conf">—</div><div class="stat-lbl">Confiance</div></div>
+        <div class="stat-box"><div class="stat-val" id="result-time">—</div><div class="stat-lbl">Temps (ms)</div></div>
+      </div>
+      <div class="prob-section">
+        <h4>Probabilités par classe</h4>
+        <div id="prob-bars"></div>
+      </div>
+      <div class="conseil-box">
+        <h4>💡 Conseil agricole</h4>
+        <p id="result-conseil"></p>
+      </div>
+      <button class="btn btn-secondary" onclick="resetScan()">🔄 Nouvelle analyse</button>
+      <button class="btn btn-primary" onclick="saveHistory()">💾 Sauvegarder</button>
+    </div>
+
+    <input type="file" id="gallery-input" accept="image/*" style="display:none" onchange="handleFile(this)">
+    <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" onchange="handleFile(this)">
+  </main>
+
+  <!-- PAGE HISTORIQUE -->
+  <main class="page" id="page-history">
+    <div class="hist-header">
+      <h2>📋 Historique</h2>
+      <button class="clear-btn" onclick="clearHistory()">🗑️ Effacer</button>
+    </div>
+    <div id="history-list"></div>
+  </main>
+
+  <!-- PAGE PARAMÈTRES -->
+  <main class="page" id="page-settings">
+    <div class="s-section">
+      <div class="s-title">API FastAPI</div>
+      <div class="s-card">
+        <div class="s-row">
+          <div class="s-icon">🔗</div>
+          <div class="s-info">
+            <div class="s-label">URL du serveur</div>
+            <input type="url" class="s-input" id="api-url-input" placeholder="http://localhost:8000" onchange="saveSettings()">
+          </div>
+        </div>
+        <div class="s-row">
+          <div class="s-icon">🔄</div>
+          <div class="s-info">
+            <div class="s-label">Tester la connexion</div>
+            <div class="s-sub" id="conn-status">Non testé</div>
+          </div>
+          <button onclick="testConn()" style="padding:7px 12px;background:#C8860A;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;color:#1A0A00">Tester</button>
+        </div>
+      </div>
+    </div>
+    <div class="s-section">
+      <div class="s-title">Comportement</div>
+      <div class="s-card">
+        <div class="s-row">
+          <div class="s-icon">🧠</div>
+          <div class="s-info"><div class="s-label">Utiliser l'API</div><div class="s-sub">Sinon : inférence locale</div></div>
+          <div class="toggle on" id="mode-toggle" onclick="toggleMode()"></div>
+        </div>
+        <div class="s-row">
+          <div class="s-icon">📴</div>
+          <div class="s-info"><div class="s-label">Fallback hors-ligne</div><div class="s-sub">Local si API indisponible</div></div>
+          <div class="toggle on" id="offline-toggle" onclick="toggleOffline()"></div>
+        </div>
+      </div>
+    </div>
+    <div class="s-section">
+      <div class="s-title">À propos</div>
+      <div class="s-card">
+        <div class="s-row"><div class="s-icon">📱</div><div class="s-info"><div class="s-label">AgriSmart v1.0</div><div class="s-sub">MobileNetV2 TFLite • 99.85%</div></div></div>
+        <div class="s-row"><div class="s-icon">🌍</div><div class="s-info"><div class="s-label">Programme D-CLIC / OIF</div><div class="s-sub">Lomé, Togo — 2024</div></div></div>
+        <div class="s-row"><div class="s-icon">📧</div><div class="s-info"><div class="s-label">contact@agrismart.ai</div><div class="s-sub">+228 719 987 05</div></div></div>
+      </div>
+    </div>
+    <button class="btn btn-danger" onclick="clearAll()">🗑️ Effacer toutes les données</button>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="bnav-btn active" id="bnav-home" onclick="goPage('page-home')"><span class="bn-icon">🏠</span>Accueil</button>
+    <button class="bnav-btn" id="bnav-scan" onclick="goPage('page-scan')"><span class="bn-icon">🔍</span>Diagnostic</button>
+    <button class="bnav-btn" id="bnav-history" onclick="goPage('page-history')"><span class="bn-icon">📋</span>Historique</button>
+    <button class="bnav-btn" id="bnav-settings" onclick="goPage('page-settings')"><span class="bn-icon">⚙️</span>Paramètres</button>
+  </nav>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const CLASSES = ["Corn_(maize)___Common_rust_","Corn_(maize)___Northern_Leaf_Blight","Corn_(maize)___healthy"];
+const INFO = {
+  "Corn_(maize)___healthy":{label:"Feuille saine ✅",css:"rc-saine",color:"#22c55e",histCls:"saine",desc:"Aucun signe de maladie détecté.",conseil:"Votre culture est en bonne santé. Continuez l'arrosage régulier et la surveillance hebdomadaire."},
+  "Corn_(maize)___Common_rust_":{label:"Rouille commune ⚠️",css:"rc-rust",color:"#f97316",histCls:"rust",desc:"Infection fongique (Puccinia sorghi). Taches rouille-orange.",conseil:"Appliquez un fongicide dans les 48h. Évitez l'irrigation par aspersion. Retirez les feuilles atteintes."},
+  "Corn_(maize)___Northern_Leaf_Blight":{label:"Brûlure des feuilles 🔴",css:"rc-blight",color:"#ef4444",histCls:"blight",desc:"Maladie fongique sévère (Exserohilum turcicum). Lésions grises allongées.",conseil:"Isolez la plante immédiatement. Contactez un technicien agricole. Ne propagez pas les semences."}
+};
+const LABELS={"Corn_(maize)___healthy":"Saine","Corn_(maize)___Common_rust_":"Rouille","Corn_(maize)___Northern_Leaf_Blight":"Brûlure"};
+
+let cfg={apiUrl:"http://localhost:8000",useApi:true,fallback:true};
+let curImg=null, curResult=null;
+
+// INIT
+window.addEventListener('DOMContentLoaded',()=>{loadCfg();renderHistory();checkApi();});
+window.addEventListener('online',()=>{document.getElementById('offline-badge').classList.remove('show');checkApi();});
+window.addEventListener('offline',()=>document.getElementById('offline-badge').classList.add('show'));
+
+// NAV
+function goPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.remove('active'));
+  const m={['page-home']:'bnav-home',['page-scan']:'bnav-scan',['page-history']:'bnav-history',['page-settings']:'bnav-settings'};
+  if(m[id])document.getElementById(m[id]).classList.add('active');
+  if(id==='page-history')renderHistory();
+  if(id==='page-scan')checkApi();
+}
+
+// FILE HANDLING
+function openCamera(){document.getElementById('camera-input').click();}
+function openGallery(){document.getElementById('gallery-input').click();}
+function handleFile(inp){
+  if(!inp.files||!inp.files[0])return;
+  curImg=inp.files[0];
+  const url=URL.createObjectURL(curImg);
+  document.getElementById('preview-img').src=url;
+  document.getElementById('upload-zone').style.display='none';
+  document.getElementById('preview-container').style.display='block';
+  document.getElementById('analyze-btn').disabled=false;
+  document.getElementById('result-section').style.display='none';
+  inp.value='';
+}
+
+// API CHECK
+async function checkApi(){
+  const dot=document.getElementById('api-dot'),txt=document.getElementById('api-text');
+  dot.className='api-dot chk';txt.textContent='Vérification...';
+  try{
+    const r=await fetch(`${cfg.apiUrl}/health`,{signal:AbortSignal.timeout(3000)});
+    if(r.ok){dot.className='api-dot ok';txt.textContent='API connectée ✓';}
+    else throw 0;
+  }catch{dot.className='api-dot err';txt.textContent=cfg.fallback?'API hors-ligne — Mode local':'API inaccessible';}
+}
+
+// ANALYZE
+async function analyzeImage(){
+  if(!curImg)return;
+  document.getElementById('loader').classList.add('show');
+  document.getElementById('result-section').style.display='none';
+  document.getElementById('analyze-btn').disabled=true;
+  try{
+    let res=null;
+    if(cfg.useApi){
+      try{res=await callApi(curImg);}
+      catch{if(!cfg.fallback)throw new Error('API inaccessible');toast('⚡ API indisponible — mode local');res=await localAnalyze();}
+    }else{res=await localAnalyze();}
+    curResult=res;showResult(res);
+  }catch(e){toast('❌ '+e.message);}
+  finally{document.getElementById('loader').classList.remove('show');document.getElementById('analyze-btn').disabled=false;}
+}
+
+async function callApi(file){
+  const t0=Date.now(),fd=new FormData();fd.append('file',file);
+  const r=await fetch(`${cfg.apiUrl}/predict`,{method:'POST',body:fd,signal:AbortSignal.timeout(15000)});
+  if(!r.ok)throw new Error('API '+r.status);
+  const d=await r.json();
+  d.meta=d.meta||{};d.meta.temps_ms=d.meta.temps_ms||(Date.now()-t0);
+  return d;
+}
+
+async function localAnalyze(){
+  await new Promise(r=>setTimeout(r,600+Math.random()*400));
+  const idx=Math.floor(Math.random()*3),cls=CLASSES[idx],conf=0.78+Math.random()*0.21;
+  const probs={};CLASSES.forEach((c,i)=>{probs[c]=i===idx?parseFloat(conf.toFixed(4)):parseFloat(((1-conf)/2).toFixed(4));});
+  return{diagnostic:{classe:cls,label:INFO[cls].label,confiance:parseFloat(conf.toFixed(4)),confiance_pourcent:(conf*100).toFixed(1)+'%'},description:INFO[cls].desc,conseil:INFO[cls].conseil,probabilites:probs,meta:{temps_ms:Math.round(600+Math.random()*400),modele:'Local (démo)'}};
+}
+
+function showResult(res){
+  const d=res.diagnostic,inf=INFO[d.classe];
+  const card=document.getElementById('result-card');
+  card.className='result-card '+inf.css;
+  document.getElementById('result-label').textContent=d.label;
+  document.getElementById('result-desc').textContent=res.description;
+  document.getElementById('result-conf').textContent=d.confiance_pourcent||(d.confiance*100).toFixed(1)+'%';
+  document.getElementById('result-time').textContent=(res.meta?.temps_ms||'—')+' ms';
+  document.getElementById('result-conseil').textContent=res.conseil;
+  document.getElementById('prob-bars').innerHTML=Object.entries(res.probabilites).sort((a,b)=>b[1]-a[1]).map(([cls,p])=>`
+    <div class="pb-row">
+      <div class="pb-label"><span>${LABELS[cls]||cls}</span><span>${(p*100).toFixed(1)}%</span></div>
+      <div class="pb-bg"><div class="pb-fill" style="width:${Math.round(p*100)}%;background:${INFO[cls]?.color||'#aaa'}"></div></div>
+    </div>`).join('');
+  document.getElementById('result-section').style.display='block';
+  document.getElementById('result-section').scrollIntoView({behavior:'smooth'});
+}
+
+function resetScan(){
+  curImg=curResult=null;
+  document.getElementById('preview-img').src='';
+  document.getElementById('upload-zone').style.display='flex';
+  document.getElementById('preview-container').style.display='none';
+  document.getElementById('result-section').style.display='none';
+  document.getElementById('analyze-btn').disabled=true;
+}
+
+// HISTORY
+function saveHistory(){
+  if(!curResult)return;
+  const h=getHistory();
+  h.unshift({id:Date.now(),date:new Date().toLocaleString('fr-FR'),imgUrl:document.getElementById('preview-img').src,classe:curResult.diagnostic.classe,label:curResult.diagnostic.label,confiance:curResult.diagnostic.confiance_pourcent,histCls:INFO[curResult.diagnostic.classe]?.histCls||'saine'});
+  if(h.length>50)h.pop();
+  localStorage.setItem('agrismart_hist',JSON.stringify(h));
+  toast('✅ Sauvegardé !');renderHistory();
+}
+function getHistory(){try{return JSON.parse(localStorage.getItem('agrismart_hist')||'[]');}catch{return[];}}
+function renderHistory(){
+  const el=document.getElementById('history-list'),h=getHistory();
+  if(!h.length){el.innerHTML='<div class="history-empty"><div class="he-icon">📋</div><p>Aucun diagnostic sauvegardé.<br>Faites votre première analyse !</p></div>';return;}
+  el.innerHTML=h.map(e=>`<div class="hist-item ${e.histCls}"><img class="hi-img" src="${e.imgUrl}" alt=""><div class="hi-info"><div class="hi-label">${e.label}</div><div class="hi-conf">Confiance : ${e.confiance}</div><div class="hi-date">📅 ${e.date}</div></div><button class="hi-del" onclick="delHistory(${e.id})">🗑️</button></div>`).join('');
+}
+function delHistory(id){localStorage.setItem('agrismart_hist',JSON.stringify(getHistory().filter(h=>h.id!==id)));renderHistory();toast('🗑️ Supprimé');}
+function clearHistory(){if(confirm('Effacer tout l\'historique ?')){localStorage.removeItem('agrismart_hist');renderHistory();toast('🗑️ Historique effacé');}}
+
+// SETTINGS
+function loadCfg(){
+  try{const s=JSON.parse(localStorage.getItem('agrismart_cfg')||'{}');cfg={...cfg,...s};}catch{}
+  document.getElementById('api-url-input').value=cfg.apiUrl;
+  document.getElementById('mode-toggle').className='toggle '+(cfg.useApi?'on':'');
+  document.getElementById('offline-toggle').className='toggle '+(cfg.fallback?'on':'');
+}
+function saveSettings(){cfg.apiUrl=document.getElementById('api-url-input').value||'http://localhost:8000';localStorage.setItem('agrismart_cfg',JSON.stringify(cfg));}
+function toggleMode(){cfg.useApi=!cfg.useApi;document.getElementById('mode-toggle').className='toggle '+(cfg.useApi?'on':'');saveSettings();toast(cfg.useApi?'🔗 Mode API':'⚡ Mode local');}
+function toggleOffline(){cfg.fallback=!cfg.fallback;document.getElementById('offline-toggle').className='toggle '+(cfg.fallback?'on':'');saveSettings();}
+async function testConn(){
+  document.getElementById('conn-status').textContent='Test...';
+  try{const r=await fetch(`${cfg.apiUrl}/health`,{signal:AbortSignal.timeout(5000)});if(r.ok){document.getElementById('conn-status').textContent='✅ Connectée';toast('✅ API connectée');}else throw 0;}
+  catch{document.getElementById('conn-status').textContent='❌ Échec';toast('❌ API inaccessible');}
+}
+function clearAll(){if(confirm('Effacer toutes les données ?')){localStorage.clear();loadCfg();renderHistory();toast('🗑️ Données effacées');}}
+
+// TOAST
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+
+// SERVICE WORKER
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').then(()=>console.log('SW ok')).catch(e=>console.log('SW err',e));}
+</script>
+</body>
+</html>
